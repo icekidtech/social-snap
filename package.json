@@ -1,0 +1,51 @@
+{
+    "name": "social-snap",
+    "version": "0.1.0",
+    "description": "Fetch, snapshot, and timestamp social media posts from Twitter/X, YouTube, Instagram, TikTok, and LinkedIn.",
+    "author": "Udoh, Idopise Edwin",
+    "license": "MIT",
+    "keywords": [
+        "social media",
+        "snapshot",
+        "timestamp",
+        "twitter",
+        "x",
+        "youtube",
+        "instagram",
+        "tiktok",
+        "linkedin",
+        "oembed",
+        "sdk"
+    ],
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        },
+        "./server": {
+            "import": "./dist/server.js",
+            "require": "./dist/server.cjs",
+            "types": "./dist/server.d.ts"
+        }
+    },
+    "files":[
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "lint": "tsc --noEmit",
+        "prepublishOnly": "npm run build"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.4.0",
+        "vites": "^1.5.0"
+    }
+}
