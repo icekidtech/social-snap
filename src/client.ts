@@ -1,22 +1,11 @@
 import type { SocialSnapConfig, Snapshot, PostData, FetcherContext } from './types';
 import { detectPlatform } from './detectors/platform';
+import { createSnapshot, stampSnapshot } from './snapshot';
 import { fetchYouTube } from './fetchers/youtube';
 import { fetchTwitter } from './fetchers/twitter';
 import { fetchTikTok } from './fetchers/tiktok';
 import { fetchInstagram } from './fetchers/instagram';
 import { fetchLinkedIn } from './fetchers/linkedin';
-
-function generateId(): string {
-  // crypto.randomUUID is available in browsers (2021+) and Node 14.17+
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  // Fallback for older environments
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
 
 function isServer(): boolean {
   return typeof window === 'undefined';
@@ -61,13 +50,7 @@ export class SocialSnap {
    * await fetch('/api/snapshots', { method: 'POST', body: JSON.stringify(snapshot) });
    */
   createSnapshot(post: PostData, raw?: unknown): Snapshot {
-    return {
-      snapshotId: generateId(),
-      url: post.url,
-      platform: post.platform,
-      post,
-      raw,
-    };
+    return createSnapshot(post, raw);
   }
 
   /**
@@ -91,10 +74,7 @@ export class SocialSnap {
    * });
    */
   stamp(snapshot: Snapshot, date?: Date): Snapshot & { capturedAt: string } {
-    return {
-      ...snapshot,
-      capturedAt: (date ?? new Date()).toISOString(),
-    };
+    return stampSnapshot(snapshot, date);
   }
 
   /**
