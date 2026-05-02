@@ -5,7 +5,7 @@ export class SocialSnapError extends Error {
     }
 }
 
-export class UnsupportedPlatformerror extends SocialSnapError {
+export class UnsupportedPlatformError extends SocialSnapError {
     constructor(url: string) {
         super(`Could not detect a supported platform from the URL: ${url}`);
         this.name = 'UnsupportedPlatformError';
