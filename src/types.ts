@@ -4,7 +4,7 @@ export interface Author {
   name: string;
   username?: string;
   avatarUrl?: string;
-  profilePictureUrl?: string;
+  profileUrl?: string;
 }
 
 export interface PostMetrics {
