@@ -9,7 +9,7 @@ interface TwitterOEmbed {
   url: string;
 }
 
-interface TwitterApiTweet {
+interface TwitterApiResponse {
   data?: {
     id: string;
     text: string;
@@ -31,32 +31,32 @@ interface TwitterApiTweet {
       profile_image_url?: string;
     }>;
   };
+  // Twitter API v2 error shape
+  errors?: Array<{ message: string; code?: number }>;
+  title?: string;   // e.g. "Unauthorized"
+  detail?: string;  // e.g. "Forbidden"
+  status?: number;
 }
 
 /**
- * Normalise an X/Twitter URL:
- * - Convert x.com → twitter.com (oEmbed still uses twitter.com)
- * - Strip tracking query params like ?s=20, ?t=xxx that break oEmbed
+ * Strip tracking params and normalise x.com → twitter.com for oEmbed.
+ * oEmbed still uses the twitter.com domain even for x.com posts.
  */
-function normaliseTwitterUrl(url: string): string {
-  let clean = url
-    .replace(/^https?:\/\/(www\.)?x\.com/, 'https://twitter.com')
-    .replace(/^https?:\/\/(www\.)?twitter\.com/, 'https://twitter.com');
-
-  // Keep only the path up to /status/<id> — drop all query params
-  const match = clean.match(/(https:\/\/twitter\.com\/[^/]+\/status\/\d+)/);
-  return match ? match[1] : clean;
+function normaliseUrl(url: string): string {
+  const match = url.match(/(?:twitter|x)\.com\/([^/?]+)\/status\/(\d+)/);
+  if (!match) return url;
+  return `https://twitter.com/${match[1]}/status/${match[2]}`;
 }
 
 export async function fetchTwitter(url: string, ctx: FetcherContext): Promise<PostData> {
-  const tweetId = extractTwitterId(url);
+  const tweetId     = extractTwitterId(url);
   const bearerToken = ctx.config.apiKeys?.twitterBearerToken;
-  const normalisedUrl = normaliseTwitterUrl(url);
+  const cleanUrl    = normaliseUrl(url);
 
-  // ── Twitter API v2 (preferred — bearer token required) ───────────────────
+  // ── Twitter API v2 (preferred path — requires Bearer token) ───────────────
   if (bearerToken && tweetId) {
     try {
-      const apiData = await fetchJson<TwitterApiTweet>(
+      const apiData = await fetchJson<TwitterApiResponse>(
         `https://api.twitter.com/2/tweets/${tweetId}` +
         `?tweet.fields=created_at,public_metrics` +
         `&expansions=author_id` +
@@ -65,8 +65,18 @@ export async function fetchTwitter(url: string, ctx: FetcherContext): Promise<Po
         { headers: { Authorization: `Bearer ${bearerToken}` } }
       );
 
-      const tweet  = apiData?.data;
-      const author = apiData?.includes?.users?.[0];
+      // Surface any API-level errors (e.g. wrong token scope, suspended tweet)
+      if (apiData.errors?.length || apiData.title) {
+        const msg =
+          apiData.errors?.[0]?.message ??
+          apiData.detail ??
+          apiData.title ??
+          'Unknown API error';
+        ctx.warn('twitter/api-v2', `API returned an error: ${msg}`);
+      }
+
+      const tweet   = apiData?.data;
+      const author  = apiData?.includes?.users?.[0];
       const metrics = tweet?.public_metrics;
 
       if (tweet) {
@@ -90,51 +100,50 @@ export async function fetchTwitter(url: string, ctx: FetcherContext): Promise<Po
                 reposts:  metrics.retweet_count,
                 comments: metrics.reply_count,
                 quotes:   metrics.quote_count,
-                views:    metrics.impression_count,
+                // impression_count requires Elevated access — omit if missing
+                ...(metrics.impression_count !== undefined && {
+                  views: metrics.impression_count,
+                }),
               }
             : undefined,
         };
       }
-    } catch {
-      // API failed — fall through to oEmbed
+    } catch (err) {
+      ctx.warn('twitter/api-v2', err);
+      // Fall through to oEmbed
     }
   }
 
   // ── oEmbed (no key needed, but X has restricted this since 2023) ──────────
-  let oembed: TwitterOEmbed | null = null;
   try {
     const result = await fetchJson<TwitterOEmbed>(
-      `https://publish.twitter.com/oembed?url=${encodeURIComponent(normalisedUrl)}&omit_script=true`,
+      `https://publish.twitter.com/oembed?url=${encodeURIComponent(cleanUrl)}&omit_script=true`,
       ctx
     );
-    // Validate the response has actual content — X sometimes returns
-    // a 200 with empty author_name / html on restricted tweets
-    if (result?.author_name && result?.html) {
-      oembed = result;
+    // Validate response has real content — X sometimes returns 200 with empty fields
+    if (!result?.author_name || !result?.html) {
+      ctx.warn('twitter/oembed', 'oEmbed returned empty author_name or html — likely restricted');
+    } else {
+      const username = result.author_url?.split('/').filter(Boolean).pop();
+      return {
+        platform:  'twitter',
+        url,
+        id:        tweetId ?? undefined,
+        title:     stripHtml(result.html).slice(0, 280),
+        embedHtml: result.html,
+        author: {
+          name:       result.author_name,
+          username,
+          profileUrl: result.author_url,
+        },
+      };
     }
-  } catch {
-    // oEmbed blocked or unavailable — continue to minimal fallback
+  } catch (err) {
+    ctx.warn('twitter/oembed', err);
   }
 
-  if (oembed) {
-    const oembedUsername = oembed.author_url?.split('/').filter(Boolean).pop();
-    return {
-      platform:   'twitter',
-      url,
-      id:         tweetId ?? undefined,
-      title:      stripHtml(oembed.html).slice(0, 280),
-      embedHtml:  oembed.html,
-      author: {
-        name:       oembed.author_name,
-        username:   oembedUsername,
-        profileUrl: oembed.author_url,
-      },
-    };
-  }
-
-  // ── Minimal fallback — we have at least the tweet ID ─────────────────────
-  // This happens when oEmbed is restricted and no bearer token is provided.
-  const username = url.match(/(?:twitter|x)\.com\/([^/]+)\/status/)?.[1];
+  // ── Minimal fallback — we have at least the tweet ID and username ──────────
+  const username = url.match(/(?:twitter|x)\.com\/([^/?]+)\/status/)?.[1];
   return {
     platform: 'twitter',
     url,
