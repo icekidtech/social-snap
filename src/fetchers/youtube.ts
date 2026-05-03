@@ -39,7 +39,7 @@ export async function fetchYouTube(url: string, ctx: FetcherContext): Promise<Po
   let oembed: YouTubeOEmbed | null = null;
   try {
     oembed = await fetchJson<YouTubeOEmbed>(
-      `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`,
       ctx
     );
   } catch (err) {
