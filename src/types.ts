@@ -30,17 +30,16 @@ export interface PostData {
 }
 
 export interface Snapshot {
-    // Unique ID generated client-side at fetch time.
-    snapshotId: string;
-    // Original URL that was pasted.
-    url: string;
-    // The platform the URL belongs to.
-    platform: Platform;
-    post: PostData;
-    // ISO timestamp - populate server-side via .stamp()
-    capturedAt?: string;
-    // Raw API/oEmbed response for reference
-    raw?: unknown;
+  /** Unique ID generated client-side at fetch time */
+  snapshotId: string;
+  /** Original URL that was pasted */
+  url: string;
+  platform: Platform;
+  post: PostData;
+  /** ISO timestamp — populated server-side via .stamp() */
+  capturedAt?: string;
+  /** Raw API/oEmbed response for reference */
+  raw?: unknown;
 }
 
 export interface ApiKeys {
@@ -53,19 +52,25 @@ export interface ApiKeys {
 }
 
 export interface SocialSnapConfig {
-    /**
-     * Proxy base URL used in browser environments to avoid CORS.
-     * The SDK will call: `{proxyUrl}?url=<encoded social url>`
-     * Your backend should forward the request and return the raw response from the social media API.
-     * This is required for browser usage since most social media APIs do not support CORS.
-     */
-    proxyUrl?: string;
-    apiKeys?: ApiKeys;
-    /** Request timeout in ms (default: 8000) */
-    timeout?: number;
+  /**
+   * Proxy base URL used in browser environments to avoid CORS.
+   * The SDK will call: `{proxyUrl}?url=<encoded social url>`
+   * Your backend should forward the request and return the raw response.
+   */
+  proxyUrl?: string;
+  apiKeys?: ApiKeys;
+  /** Request timeout in ms (default: 8000) */
+  timeout?: number;
+  /**
+   * Enable debug mode — surfaces silent API errors to the console
+   * instead of swallowing them. Useful during development.
+   */
+  debug?: boolean;
 }
 
 export interface FetcherContext {
-    config: SocialSnapConfig;
-    isServer: boolean;
+  config: SocialSnapConfig;
+  isServer: boolean;
+  /** Call this to report a non-fatal error when debug mode is on */
+  warn: (source: string, err: unknown) => void;
 }
