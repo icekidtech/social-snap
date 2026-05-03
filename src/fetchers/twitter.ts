@@ -144,11 +144,12 @@ export async function fetchTwitter(url: string, ctx: FetcherContext): Promise<Po
 
   // ── Minimal fallback — we have at least the tweet ID and username ──────────
   const username = url.match(/(?:twitter|x)\.com\/([^/?]+)\/status/)?.[1];
+  ctx.warn('twitter/fallback', 'Could not fetch tweet data from API or oEmbed; returning minimal snapshot');
   return {
     platform: 'twitter',
     url,
     id:       tweetId ?? undefined,
-    author:   username ? { name: username, username } : undefined,
+    author:   username ? { name: username, username, profileUrl: `https://twitter.com/${username}` } : undefined,
   };
 }
 
