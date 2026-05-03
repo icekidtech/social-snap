@@ -18,36 +18,40 @@ export class SocialSnap {
     this.config = config;
   }
 
+  private makeContext(): FetcherContext {
+    return {
+      config: this.config,
+      isServer: isServer(),
+      warn: (source: string, err: unknown) => {
+        if (this.config.debug) {
+          console.warn(
+            `\n[social-snap DEBUG:${source}]`,
+            err instanceof Error ? `${err.message}` : err
+          );
+        }
+      },
+    };
+  }
+
   /**
    * Fetch post data for a given social media URL.
    * Use this on the **frontend** to preview a pasted link.
    */
   async preview(url: string): Promise<PostData> {
     const platform = detectPlatform(url);
-    const ctx: FetcherContext = { config: this.config, isServer: isServer() };
+    const ctx = this.makeContext();
 
     switch (platform) {
-      case 'youtube':
-        return fetchYouTube(url, ctx);
-      case 'twitter':
-        return fetchTwitter(url, ctx);
-      case 'tiktok':
-        return fetchTikTok(url, ctx);
-      case 'instagram':
-        return fetchInstagram(url, ctx);
-      case 'linkedin':
-        return fetchLinkedIn(url, ctx);
+      case 'youtube':   return fetchYouTube(url, ctx);
+      case 'twitter':   return fetchTwitter(url, ctx);
+      case 'tiktok':    return fetchTikTok(url, ctx);
+      case 'instagram': return fetchInstagram(url, ctx);
+      case 'linkedin':  return fetchLinkedIn(url, ctx);
     }
   }
 
   /**
    * Wrap a PostData result in a Snapshot envelope.
-   * Call this after `preview()` to prepare the payload for your backend.
-   *
-   * @example
-   * const post = await snap.preview(url);
-   * const snapshot = snap.createSnapshot(post);
-   * await fetch('/api/snapshots', { method: 'POST', body: JSON.stringify(snapshot) });
    */
   createSnapshot(post: PostData, raw?: unknown): Snapshot {
     return createSnapshot(post, raw);
@@ -62,16 +66,8 @@ export class SocialSnap {
   }
 
   /**
-   * Add a server-side `capturedAt` timestamp to a snapshot.
-   * Call this on your **backend** when you receive the snapshot from the client.
-   *
-   * @example
-   * // Express route
-   * app.post('/api/snapshots', (req, res) => {
-   *   const stamped = snap.stamp(req.body);
-   *   await db.save(stamped);
-   *   res.json(stamped);
-   * });
+   * Add a server-side capturedAt timestamp to a snapshot.
+   * Always call this on your backend, never on the client.
    */
   stamp(snapshot: Snapshot, date?: Date): Snapshot & { capturedAt: string } {
     return stampSnapshot(snapshot, date);
@@ -79,7 +75,6 @@ export class SocialSnap {
 
   /**
    * Detect which platform a URL belongs to without fetching.
-   * Useful for showing a platform badge before the preview loads.
    */
   detectPlatform(url: string) {
     return detectPlatform(url);
