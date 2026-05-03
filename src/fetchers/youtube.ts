@@ -31,7 +31,9 @@ interface YouTubeApiResponse {
 
 export async function fetchYouTube(url: string, ctx: FetcherContext): Promise<PostData> {
   const videoId = extractYouTubeId(url);
-  const apiKey = ctx.config.apiKeys?.youtubeApiKey;
+  // Strip share tracking params (e.g. ?si=...) before oEmbed lookup
+  const cleanUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
+  const apiKey  = ctx.config.apiKeys?.youtubeApiKey;
 
   // --- oEmbed (always available) ---
   let oembed: YouTubeOEmbed | null = null;
