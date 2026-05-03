@@ -40,8 +40,8 @@ export async function fetchYouTube(url: string, ctx: FetcherContext): Promise<Po
       `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
       ctx
     );
-  } catch {
-    // oEmbed failed, will fall back to OG
+  } catch (err) {
+    ctx.warn('youtube/oembed', err);
   }
 
   // --- YouTube Data API v3 (optional) ---
@@ -52,33 +52,33 @@ export async function fetchYouTube(url: string, ctx: FetcherContext): Promise<Po
         `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,statistics&key=${apiKey}`,
         ctx
       );
-    } catch {
-      // API failed, continue without metrics
+    } catch (err) {
+      ctx.warn('youtube/api-v3', err);
     }
   }
 
-  const item = apiData?.items?.[0];
-  const stats = item?.statistics;
+  const item    = apiData?.items?.[0];
+  const stats   = item?.statistics;
   const snippet = item?.snippet;
 
   if (oembed || item) {
     return {
-      platform: 'youtube',
+      platform:    'youtube',
       url,
-      id: videoId ?? undefined,
-      title: snippet?.title ?? oembed?.title,
+      id:          videoId ?? undefined,
+      title:       snippet?.title ?? oembed?.title,
       description: snippet?.description,
       author: {
-        name: snippet?.channelTitle ?? oembed?.author_name ?? '',
+        name:       snippet?.channelTitle ?? oembed?.author_name ?? '',
         profileUrl: oembed?.author_url,
       },
       thumbnailUrl: snippet?.thumbnails?.high?.url ?? oembed?.thumbnail_url,
-      embedHtml: oembed?.html,
-      publishedAt: snippet?.publishedAt,
+      embedHtml:    oembed?.html,
+      publishedAt:  snippet?.publishedAt,
       metrics: stats
         ? {
-            views: stats.viewCount ? parseInt(stats.viewCount, 10) : undefined,
-            likes: stats.likeCount ? parseInt(stats.likeCount, 10) : undefined,
+            views:    stats.viewCount    ? parseInt(stats.viewCount, 10)    : undefined,
+            likes:    stats.likeCount    ? parseInt(stats.likeCount, 10)    : undefined,
             comments: stats.commentCount ? parseInt(stats.commentCount, 10) : undefined,
           }
         : undefined,
@@ -86,15 +86,20 @@ export async function fetchYouTube(url: string, ctx: FetcherContext): Promise<Po
   }
 
   // --- OG tag fallback ---
-  const html = await fetchHtml(url, ctx);
-  const og = parseOGTags(html);
-  return {
-    platform: 'youtube',
-    url,
-    id: videoId ?? undefined,
-    title: og.title,
-    description: og.description,
-    thumbnailUrl: og.image,
-    author: og.author ? { name: og.author } : undefined,
-  };
+  try {
+    const html = await fetchHtml(url, ctx);
+    const og   = parseOGTags(html);
+    return {
+      platform:    'youtube',
+      url,
+      id:          videoId ?? undefined,
+      title:       og.title,
+      description: og.description,
+      thumbnailUrl: og.image,
+      author:      og.author ? { name: og.author } : undefined,
+    };
+  } catch (err) {
+    ctx.warn('youtube/og', err);
+    return { platform: 'youtube', url, id: videoId ?? undefined };
+  }
 }
