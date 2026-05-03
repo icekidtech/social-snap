@@ -127,6 +127,7 @@ async function main() {
   }
 
   const snap = new SocialSnap({
+    debug: true,
     apiKeys: {
       youtubeApiKey:   youtubeKey,
       twitterBearerToken:   twitterBearer,
