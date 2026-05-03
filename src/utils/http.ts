@@ -53,7 +53,7 @@ export async function fetchJson<T = unknown>(
   retries = 2
 ): Promise<T> {
   const { config, isServer } = ctx;
-  const timeout = config.timeout ?? 8000;
+  const timeout = config.timeout ?? 15000;
 
   const targetUrl =
     !isServer && config.proxyUrl
@@ -115,7 +115,7 @@ export async function fetchJson<T = unknown>(
 
 export async function fetchHtml(url: string, ctx: FetcherContext): Promise<string> {
   const { config, isServer } = ctx;
-  const timeout = config.timeout ?? 8000;
+  const timeout = config.timeout ?? 15000;
 
   const targetUrl =
     !isServer && config.proxyUrl
